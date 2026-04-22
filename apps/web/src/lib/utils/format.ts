@@ -3,6 +3,18 @@ const priceFormatter = new Intl.NumberFormat('pt-BR', {
   currency: 'BRL',
 });
 
+const dateTimeFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+});
+
+export function formatDateTime(iso: string): string {
+  return dateTimeFormatter.format(new Date(iso));
+}
+
 export function formatPriceFromCents(cents: number): string {
   return priceFormatter.format(cents / 100);
 }

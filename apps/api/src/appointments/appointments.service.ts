@@ -4,7 +4,7 @@ import { type Appointment, type AppointmentStatus } from '../db/schema/appointme
 import { type Exam } from '../db/schema/exams';
 import { ExamsService } from '../exams/exams.service';
 
-import { AppointmentsRepository } from './appointments.repository';
+import { type AppointmentWithExam, AppointmentsRepository } from './appointments.repository';
 import { type CreateAppointmentDto } from './dto/create-appointment.dto';
 
 const MS_PER_MINUTE = 60 * 1000;
@@ -29,7 +29,7 @@ export class AppointmentsService {
     });
   }
 
-  listByUser(userId: string, status?: AppointmentStatus): Promise<Appointment[]> {
+  listByUser(userId: string, status?: AppointmentStatus): Promise<AppointmentWithExam[]> {
     return this.repository.findManyByUser(userId, status);
   }
 

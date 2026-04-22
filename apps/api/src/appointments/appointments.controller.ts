@@ -14,6 +14,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { type AuthenticatedUser } from '../auth/jwt.strategy';
 import { type Appointment } from '../db/schema/appointments';
 
+import { type AppointmentWithExam } from './appointments.repository';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsQueryDto } from './dto/appointments-query.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -36,7 +37,7 @@ export class AppointmentsController {
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: AppointmentsQueryDto,
-  ): Promise<Appointment[]> {
+  ): Promise<AppointmentWithExam[]> {
     return this.appointments.listByUser(user.id, query.status);
   }
 }

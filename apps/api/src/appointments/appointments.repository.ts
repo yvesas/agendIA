@@ -8,12 +8,16 @@ import {
   type NewAppointment,
   appointments,
 } from '../db/schema/appointments';
-import { exams } from '../db/schema/exams';
+import { type Exam, exams } from '../db/schema/exams';
 
 export interface OverlapWindow {
   userId: string;
   start: Date;
   end: Date;
+}
+
+export interface AppointmentWithExam extends Appointment {
+  exam: Exam;
 }
 
 @Injectable()
@@ -26,16 +30,19 @@ export class AppointmentsRepository {
     return row;
   }
 
-  async findManyByUser(userId: string, status?: AppointmentStatus): Promise<Appointment[]> {
+  async findManyByUser(userId: string, status?: AppointmentStatus): Promise<AppointmentWithExam[]> {
     const whereClause = status
       ? and(eq(appointments.userId, userId), eq(appointments.status, status))
       : eq(appointments.userId, userId);
 
-    return this.db
+    const rows = await this.db
       .select()
       .from(appointments)
+      .innerJoin(exams, eq(appointments.examId, exams.id))
       .where(whereClause)
       .orderBy(desc(appointments.scheduledAt));
+
+    return rows.map((row) => ({ ...row.appointments, exam: row.exams }));
   }
 
   async findOverlapping({ userId, start, end }: OverlapWindow): Promise<Appointment[]> {

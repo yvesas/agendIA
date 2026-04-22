@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, lt, ne, sql } from 'drizzle-orm';
 
 import { DRIZZLE, type Database } from '../db/database.module';
 import {
@@ -8,6 +8,13 @@ import {
   type NewAppointment,
   appointments,
 } from '../db/schema/appointments';
+import { exams } from '../db/schema/exams';
+
+export interface OverlapWindow {
+  userId: string;
+  start: Date;
+  end: Date;
+}
 
 @Injectable()
 export class AppointmentsRepository {
@@ -29,6 +36,23 @@ export class AppointmentsRepository {
       .from(appointments)
       .where(whereClause)
       .orderBy(desc(appointments.scheduledAt));
+  }
+
+  async findOverlapping({ userId, start, end }: OverlapWindow): Promise<Appointment[]> {
+    const rows = await this.db
+      .select()
+      .from(appointments)
+      .innerJoin(exams, eq(appointments.examId, exams.id))
+      .where(
+        and(
+          eq(appointments.userId, userId),
+          ne(appointments.status, 'CANCELLED'),
+          lt(appointments.scheduledAt, end),
+          sql`${appointments.scheduledAt} + make_interval(mins => ${exams.durationMin}) > ${start}`,
+        ),
+      );
+
+    return rows.map((row) => row.appointments);
   }
 
   async create(input: NewAppointment): Promise<Appointment> {

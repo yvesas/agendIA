@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser } from '../auth/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -19,6 +20,8 @@ import { AppointmentsService } from './appointments.service';
 import { AppointmentsQueryDto } from './dto/appointments-query.dto';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 
+@ApiTags('Appointments')
+@ApiBearerAuth()
 @Controller('appointments')
 @UseGuards(JwtAuthGuard)
 export class AppointmentsController {

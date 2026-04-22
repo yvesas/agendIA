@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 interface HealthStatus {
   status: 'ok';
@@ -6,6 +7,7 @@ interface HealthStatus {
   uptimeSeconds: number;
 }
 
+@ApiTags('Health')
 @Controller('health')
 export class HealthController {
   @Get()

@@ -1,11 +1,13 @@
 import { CacheInterceptor } from '@nestjs/cache-manager';
 import { Controller, Get, Param, ParseUUIDPipe, Query, UseInterceptors } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 
 import { type Exam } from '../db/schema/exams';
 
 import { ExamsQueryDto } from './dto/exams-query.dto';
 import { type ExamsListResponse, ExamsService } from './exams.service';
 
+@ApiTags('Exams')
 @Controller('exams')
 export class ExamsController {
   constructor(private readonly exams: ExamsService) {}

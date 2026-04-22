@@ -18,8 +18,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:runtime": "node dist/db/migrate.js",
     "db:studio": "drizzle-kit studio",
-    "db:seed": "ts-node -P tsconfig.json --transpile-only src/db/seed.ts"
+    "db:seed": "ts-node -P tsconfig.json --transpile-only src/db/seed.ts",
+    "db:seed:runtime": "node dist/db/seed.js"
   },
   "dependencies": {
     "@keyv/redis": "^5.1.6",

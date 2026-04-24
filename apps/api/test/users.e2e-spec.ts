@@ -136,4 +136,32 @@ describe('Users (e2e)', () => {
       await request(ctx.app.getHttpServer()).get('/users/me').set(authHeader(user)).expect(401);
     });
   });
+
+  describe('GET /users/me/export', () => {
+    it('retorna user + agendamentos + timestamp ISO', async () => {
+      const user = await registerUser(ctx);
+
+      const response = await request(ctx.app.getHttpServer())
+        .get('/users/me/export')
+        .set(authHeader(user))
+        .expect(200);
+
+      expect(response.body).toEqual({
+        generatedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/),
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          createdAt: expect.any(String),
+          updatedAt: expect.any(String),
+        },
+        appointments: [],
+      });
+      expect(response.body.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('401 sem token', async () => {
+      await request(ctx.app.getHttpServer()).get('/users/me/export').expect(401);
+    });
+  });
 });

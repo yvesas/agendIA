@@ -74,3 +74,15 @@ export function useDeleteAccount(): UseMutationResult<void, ApiError, void> {
     },
   });
 }
+
+export interface DataExport {
+  generatedAt: string;
+  user: PublicUser;
+  appointments: unknown[];
+}
+
+export function useExportMyData(): UseMutationResult<DataExport, ApiError, void> {
+  return useMutation<DataExport, ApiError, void>({
+    mutationFn: () => apiClient.get<DataExport>('/users/me/export'),
+  });
+}

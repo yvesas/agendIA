@@ -7,10 +7,22 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useDeleteAccount } from '@/hooks/use-profile';
+import { useDeleteAccount, useExportMyData } from '@/hooks/use-profile';
 import { ApiError } from '@/lib/http';
 
 import { SectionCard } from './section-card';
+
+function downloadJsonFile(data: unknown, filename: string): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
 
 const CONFIRMATION_WORD = 'EXCLUIR';
 
@@ -21,6 +33,23 @@ export function DangerZone() {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const deleteAccount = useDeleteAccount();
+  const exportData = useExportMyData();
+
+  async function onExport() {
+    try {
+      const data = await exportData.mutateAsync();
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadJsonFile(data, `agendia-meus-dados-${stamp}.json`);
+      toast.success('Download iniciado.');
+    } catch (error) {
+      if (error instanceof ApiError && error.isUnauthorized) {
+        return;
+      }
+      const message =
+        error instanceof ApiError ? error.displayMessage : 'Falha ao exportar dados.';
+      toast.error(message);
+    }
+  }
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -62,18 +91,36 @@ export function DangerZone() {
       description="Excluir sua conta remove permanentemente seus dados pessoais e histórico de agendamentos. Esta ação não pode ser desfeita."
       tone="danger"
     >
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-muted-foreground text-sm">
-          Ao excluir, todos os agendamentos associados serão removidos junto com seus dados.
-        </p>
-        <Button
-          type="button"
-          variant="danger"
-          onClick={() => setOpen(true)}
-          className="shrink-0 px-5 font-medium whitespace-nowrap"
-        >
-          Excluir minha conta
-        </Button>
+      <div className="space-y-4">
+        <div className="border-border bg-background flex flex-col gap-3 rounded-md border p-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-sm">
+            Baixe um arquivo JSON com seus dados pessoais e histórico de agendamentos.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onExport}
+            loading={exportData.isPending}
+            disabled={exportData.isPending}
+            className="shrink-0 font-medium whitespace-nowrap"
+          >
+            {exportData.isPending ? 'Gerando...' : 'Baixar meus dados'}
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-muted-foreground text-sm">
+            Ao excluir, todos os agendamentos associados serão removidos junto com seus dados.
+          </p>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => setOpen(true)}
+            className="shrink-0 px-5 font-medium whitespace-nowrap"
+          >
+            Excluir minha conta
+          </Button>
+        </div>
       </div>
 
       <dialog

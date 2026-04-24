@@ -1,5 +1,6 @@
 import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
+import { AppointmentsRepository } from '../appointments/appointments.repository';
 import { PasswordHasher } from '../auth/password-hasher';
 import { type User } from '../db/schema/users';
 
@@ -9,6 +10,7 @@ import { UsersService } from './users.service';
 describe('UsersService', () => {
   let users: jest.Mocked<UsersRepository>;
   let hasher: jest.Mocked<PasswordHasher>;
+  let appointments: jest.Mocked<AppointmentsRepository>;
   let service: UsersService;
 
   const STORED_USER: User = {
@@ -34,7 +36,15 @@ describe('UsersService', () => {
       compare: jest.fn(),
     } as unknown as jest.Mocked<PasswordHasher>;
 
-    service = new UsersService(users, hasher);
+    appointments = {
+      findManyByUser: jest.fn(),
+      findById: jest.fn(),
+      findOverlapping: jest.fn(),
+      create: jest.fn(),
+      updateStatus: jest.fn(),
+    } as unknown as jest.Mocked<AppointmentsRepository>;
+
+    service = new UsersService(users, hasher, appointments);
   });
 
   describe('getById', () => {
@@ -184,6 +194,29 @@ describe('UsersService', () => {
       users.deleteById.mockResolvedValue(false);
 
       await expect(service.deleteAccount('missing')).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('exportData', () => {
+    it('inclui user sanitizado + agendamentos e timestamp ISO', async () => {
+      users.findById.mockResolvedValue(STORED_USER);
+      appointments.findManyByUser.mockResolvedValue([]);
+
+      const result = await service.exportData(STORED_USER.id);
+
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(result.user.id).toBe(STORED_USER.id);
+      expect(result.appointments).toEqual([]);
+      expect(result.generatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      expect(appointments.findManyByUser).toHaveBeenCalledWith(STORED_USER.id);
+    });
+
+    it('lança NotFoundException se o usuário não existe', async () => {
+      users.findById.mockResolvedValue(undefined);
+
+      await expect(service.exportData('missing')).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(appointments.findManyByUser).not.toHaveBeenCalled();
     });
   });
 });

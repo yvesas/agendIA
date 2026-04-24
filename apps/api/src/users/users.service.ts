@@ -6,6 +6,10 @@ import {
 } from '@nestjs/common';
 import type { ChangePasswordInput, UpdateProfileInput } from '@agendia/contracts';
 
+import {
+  type AppointmentWithExam,
+  AppointmentsRepository,
+} from '../appointments/appointments.repository';
 import { PasswordHasher } from '../auth/password-hasher';
 import { type User } from '../db/schema/users';
 
@@ -19,11 +23,18 @@ export interface PublicUser {
   updatedAt: Date;
 }
 
+export interface DataExport {
+  generatedAt: string;
+  user: PublicUser;
+  appointments: AppointmentWithExam[];
+}
+
 @Injectable()
 export class UsersService {
   constructor(
     private readonly users: UsersRepository,
     private readonly hasher: PasswordHasher,
+    private readonly appointments: AppointmentsRepository,
   ) {}
 
   async getById(id: string): Promise<PublicUser> {
@@ -80,6 +91,19 @@ export class UsersService {
     if (!deleted) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  async exportData(id: string): Promise<DataExport> {
+    const user = await this.users.findById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const appointments = await this.appointments.findManyByUser(id);
+    return {
+      generatedAt: new Date().toISOString(),
+      user: this.toPublic(user),
+      appointments,
+    };
   }
 
   private toPublic(user: User): PublicUser {

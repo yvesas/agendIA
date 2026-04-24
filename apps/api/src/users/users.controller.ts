@@ -22,7 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { type AuthenticatedUser } from '../auth/jwt.strategy';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
-import { type PublicUser, UsersService } from './users.service';
+import { type DataExport, type PublicUser, UsersService } from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -34,6 +34,11 @@ export class UsersController {
   @Get('me')
   getMe(@CurrentUser() user: AuthenticatedUser): Promise<PublicUser> {
     return this.users.getById(user.id);
+  }
+
+  @Get('me/export')
+  exportMyData(@CurrentUser() user: AuthenticatedUser): Promise<DataExport> {
+    return this.users.exportData(user.id);
   }
 
   @Patch('me')

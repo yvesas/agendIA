@@ -456,7 +456,6 @@ Itens deixados fora do escopo atual, com caminho de evolução claro:
 ## GitFlow e commits
 
 - `main` — base estável.
-- `develop` — integração.
 - Features em branches curtas (omitido aqui por ser single-contributor).
 - Conventional Commits: `feat(api):`, `feat(web):`, `chore(docker):`, `test(api):`, `refactor(web):`, `ci:`, `docs:`.
 - Cada commit é atômico e descreve o **por quê** (não apenas o "o quê") — `git log` deve ler-se como uma narrativa da implementação.

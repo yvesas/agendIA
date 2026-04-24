@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Lint, typecheck and test
+    name: Lint, typecheck and unit tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -29,6 +29,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Build shared contracts
+        run: npm run build --workspace=@agendia/contracts
+
       - name: Lint
         run: npm run lint
 
@@ -37,3 +40,61 @@ jobs:
 
       - name: Unit tests
         run: npm run test
+
+  e2e:
+    name: API e2e tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: agendia
+          POSTGRES_PASSWORD: agendia
+          POSTGRES_DB: agendia
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U agendia -d agendia"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_POSTGRES_HOST: localhost
+      TEST_POSTGRES_PORT: '5432'
+      TEST_POSTGRES_USER: agendia
+      TEST_POSTGRES_PASSWORD: agendia
+      TEST_DATABASE_NAME: agendia_test
+      REDIS_URL: redis://localhost:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@agendia/contracts
+
+      - name: Run e2e suite
+        run: npm run test:e2e --workspace=@agendia/api

@@ -131,15 +131,9 @@ describe('Users (e2e)', () => {
     it('apaga a conta (LGPD) e bloqueia o token seguinte', async () => {
       const user = await registerUser(ctx);
 
-      await request(ctx.app.getHttpServer())
-        .delete('/users/me')
-        .set(authHeader(user))
-        .expect(204);
+      await request(ctx.app.getHttpServer()).delete('/users/me').set(authHeader(user)).expect(204);
 
-      await request(ctx.app.getHttpServer())
-        .get('/users/me')
-        .set(authHeader(user))
-        .expect(401);
+      await request(ctx.app.getHttpServer()).get('/users/me').set(authHeader(user)).expect(401);
     });
   });
 });

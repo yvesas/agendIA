@@ -4,12 +4,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import postgres from 'postgres';
 
-import {
-  ADMIN_DATABASE_URL,
-  TEST_DATABASE_NAME,
-  TEST_DATABASE_URL,
-  applyTestEnv,
-} from './env';
+import { ADMIN_DATABASE_URL, TEST_DATABASE_NAME, TEST_DATABASE_URL, applyTestEnv } from './env';
 
 export default async function globalSetup(): Promise<void> {
   applyTestEnv();

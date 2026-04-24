@@ -35,18 +35,14 @@ export class AuthController {
   @Throttle({ default: { ttl: seconds(60), limit: LOGIN_ATTEMPTS_PER_MINUTE } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  login(
-    @Body(new ZodValidationPipe(loginSchema)) body: LoginInput,
-  ): Promise<AuthResponse> {
+  login(@Body(new ZodValidationPipe(loginSchema)) body: LoginInput): Promise<AuthResponse> {
     return this.auth.login(body);
   }
 
   @Throttle({ default: { ttl: seconds(60), limit: REFRESH_ATTEMPTS_PER_MINUTE } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
-  refresh(
-    @Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput,
-  ): Promise<AuthResponse> {
+  refresh(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput): Promise<AuthResponse> {
     return this.auth.refresh(body.refreshToken);
   }
 }

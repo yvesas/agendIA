@@ -38,7 +38,8 @@ export async function registerUser(
 ): Promise<RegisteredUser> {
   const payload = {
     name: overrides.name ?? 'E2E User',
-    email: overrides.email ?? `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.app`,
+    email:
+      overrides.email ?? `e2e-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@test.app`,
     password: overrides.password ?? 'Str0ng@Pass!',
   };
 

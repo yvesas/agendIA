@@ -40,6 +40,7 @@ export function ProfileSection({ initial }: ProfileSectionProps) {
 
   useEffect(() => {
     reset(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só quero re-resetar quando os campos mudam, não o objeto em si
   }, [initial.name, initial.email, reset]);
 
   async function onSubmit(values: ProfileForm) {

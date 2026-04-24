@@ -108,6 +108,7 @@ function Section({ title, emptyMessage, items, isFetching }: SectionProps) {
 
 function AppointmentCard({ appointment }: { appointment: AppointmentWithExam }) {
   const { id, exam, scheduledAt, status } = appointment;
+  // eslint-disable-next-line react-hooks/purity -- comparação com 'agora' define se o botão aparece; a UI re-renderiza quando os dados mudam
   const canCancel = status === 'SCHEDULED' && new Date(scheduledAt).getTime() > Date.now();
 
   return (

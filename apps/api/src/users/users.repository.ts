@@ -4,9 +4,7 @@ import { eq } from 'drizzle-orm';
 import { DRIZZLE, type Database } from '../db/database.module';
 import { type NewUser, type User, users } from '../db/schema/users';
 
-export type UpdatableUserFields = Partial<
-  Pick<NewUser, 'name' | 'email' | 'passwordHash'>
->;
+export type UpdatableUserFields = Partial<Pick<NewUser, 'name' | 'email' | 'passwordHash'>>;
 
 @Injectable()
 export class UsersRepository {

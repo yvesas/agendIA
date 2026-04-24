@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { PasswordHasher } from '../auth/password-hasher';
 import { type User } from '../db/schema/users';
@@ -121,9 +117,9 @@ describe('UsersService', () => {
     it('throws NotFoundException when the user does not exist', async () => {
       users.findById.mockResolvedValue(undefined);
 
-      await expect(
-        service.updateProfile('missing', { name: 'Anybody' }),
-      ).rejects.toBeInstanceOf(NotFoundException);
+      await expect(service.updateProfile('missing', { name: 'Anybody' })).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
 
       expect(users.update).not.toHaveBeenCalled();
     });

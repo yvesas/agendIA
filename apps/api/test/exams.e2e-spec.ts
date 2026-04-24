@@ -65,9 +65,7 @@ describe('Exams (e2e)', () => {
     it('retorna o exame por id', async () => {
       const exam = await seedExam(ctx.db, { slug: 'detail-1' });
 
-      const response = await request(ctx.app.getHttpServer())
-        .get(`/exams/${exam.id}`)
-        .expect(200);
+      const response = await request(ctx.app.getHttpServer()).get(`/exams/${exam.id}`).expect(200);
 
       expect(response.body.id).toBe(exam.id);
       expect(response.body.slug).toBe('detail-1');

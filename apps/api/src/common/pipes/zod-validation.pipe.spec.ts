@@ -42,10 +42,7 @@ describe('ZodValidationPipe', () => {
       expect(response.statusCode).toBe(400);
       expect(response.error).toBe('Bad Request');
       expect(response.message).toEqual(
-        expect.arrayContaining([
-          expect.stringMatching(/^name: /),
-          expect.stringMatching(/^age: /),
-        ]),
+        expect.arrayContaining([expect.stringMatching(/^name: /), expect.stringMatching(/^age: /)]),
       );
     }
   });

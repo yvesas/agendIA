@@ -418,12 +418,14 @@ Env injetadas para o e2e replicam o setup local: `TEST_POSTGRES_HOST=localhost`,
 ## Diferenciais implementados
 
 - **Swagger/OpenAPI** em `/docs` (UI com `Authorize` persistindo token).
-- **Refresh tokens** + auto-refresh transparente no cliente; `SessionGuard` centraliza recovery de sessão expirada.
+- **Tokens em cookies httpOnly** (`agendia_access_token` / `agendia_refresh_token`, `SameSite=Lax`, `Secure` em prod). JS do browser não lê tokens — defesa contra XSS. Proxy Next 16 lê por ser server-side.
+- **Refresh tokens persistidos** com **rotação em cada uso** (sha256 + `expires_at` + `revoked_at` no Postgres) e **defesa contra replay**: reuso de refresh já revogado revoga toda a família do usuário.
+- **Auto-refresh transparente no cliente** (dedupe via promise cacheada); `SessionGuard` centraliza recovery de sessão expirada.
 - **`@agendia/contracts`** — SSOT Zod compartilhado, consumido diretamente no web e via pipe no back.
-- **Senha forte obrigatória** (upper/lower/digit/special + 8-128 chars) aplicada tanto no front quanto no back.
-- **LGPD**: `DELETE /users/me` remove a conta e cascateia agendamentos; UI exige confirmação explícita digitando `EXCLUIR`.
+- **Senha forte obrigatória** (upper/lower/digit/special + 8-128 chars) aplicada tanto no front quanto no back. Troca de senha revoga todas as sessões do usuário.
+- **LGPD**: `DELETE /users/me` remove a conta e cascateia agendamentos + refresh tokens; UI exige confirmação explícita digitando `EXCLUIR`. **Export** via `GET /users/me/export` (botão "Baixar meus dados" no perfil).
 - **Cancelamento de agendamento** com regras (ownership, status, futuro) e UI consistente (dialog nativo + loading).
-- **Rate limiting** com `@nestjs/throttler`: 60/min global, `/auth/login` 5/min, `/auth/register` 10/h, `/auth/refresh` 30/min (desligado em `NODE_ENV=test`).
+- **Rate limiting distribuído** com `@nestjs/throttler` + `RedisThrottlerStorage` próprio (ioredis). Compartilha contador entre réplicas (scale horizontal). Limites: 60/min global, `/auth/login` 5/min, `/auth/register` 10/h, `/auth/refresh` 30/min.
 - **SEO** — meta tags dinâmicas via `generateMetadata` em `/exams/[id]` (title, description, openGraph).
 - **CI completo** — quality (lint+typecheck+unit) + e2e com services PG/Redis em GitHub Actions Free.
 - **Hooks locais** — pre-commit (lint-staged) + pre-push (typecheck).
@@ -435,21 +437,19 @@ Env injetadas para o e2e replicam o setup local: `TEST_POSTGRES_HOST=localhost`,
 
 Itens deixados fora do escopo atual, com caminho de evolução claro:
 
-1. **Refresh token persistido** — hoje o refresh é stateless (valida só a assinatura + user). Para permitir revogação individual, seria uma tabela `refresh_tokens (id, user_id, hash, expires_at, revoked_at)` + rotação em cada uso.
+1. **Coverage em features do front** — Vitest + Testing Library para `useLogin`/`useRegister`/`useProfile`/booking e cancel flows.
 
-2. **Throttler backed por Redis** — hoje roda em memória; ok para instância única. Para scale horizontal, implementação customizada de `ThrottlerStorage` usando `ioredis`/`keyv-redis` (~30 linhas, uma flag).
+2. **Validação do token na edge** — o proxy atual só checa presença do cookie de refresh. Validar assinatura na edge exige `jose` (compatível com Edge Runtime) — corta requests de tokens expirados antes de chegar à API.
 
-3. **Token em cookie httpOnly** — XSS-proof. Implica Next.js API routes que proxyam a API ou um gateway dedicado; refactor localizado.
+3. **Observability** — logs estruturados (pino), métricas prometheus, trace OpenTelemetry. Infra pronta, só falta plugar.
 
-4. **Coverage em features do front** — Vitest + Testing Library para `useLogin`/`useRegister`/`useProfile`/booking e cancel flows.
+4. **Cache invalidation em mutações** — quando houver endpoints de escrita em `/exams`, usar `CACHE_MANAGER` provider global.
 
-5. **Validação do token na edge** — o proxy atual só checa presença do cookie de refresh. Validar assinatura na edge exige `jose` (compatível com Edge Runtime) — corta requests de tokens expirados antes de chegar à API.
+5. **Limpeza periódica de `refresh_tokens`** — hoje rows revogadas/expiradas ficam no DB. Um job (cron ou pg_cron) que faz `DELETE WHERE expires_at < now() - interval '30 days' OR revoked_at < now() - interval '30 days'` mantém a tabela enxuta. Enquanto o volume é baixo, dá pra deixar.
 
-6. **Observability** — logs estruturados (pino), métricas prometheus, trace OpenTelemetry. Infra pronta, só falta plugar.
+6. **Audit log de sessão** — registrar IP, user-agent e timestamp em cada emissão de refresh token (colunas extras em `refresh_tokens`), + tela "Sessões ativas" no perfil com revogação individual. `revokeById` já existe; falta a UI e captar metadata no controller.
 
-7. **Export LGPD** — endpoint `GET /users/me/export` devolvendo JSON com dados pessoais + agendamentos, e botão "Baixar meus dados" no perfil.
-
-8. **Cache invalidation em mutações** — quando houver endpoints de escrita em `/exams`, usar `CACHE_MANAGER` provider global.
+7. **CSP e security headers** — `helmet` no Nest + headers agressivos de CSP no Next. O `<dialog>` nativo e bundles próprios tornam CSP estrito viável sem inline scripts.
 
 ---
 

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 
 import { AppModule } from './app.module';
 import type { EnvVars } from './config/env.schema';
@@ -13,6 +14,16 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
   app.enableShutdownHooks();
+
+  // Security headers. CSP desligado por padrão porque o Swagger UI carrega
+  // scripts/style inline — quando o consumidor for só API sem docs, dá pra
+  // religar com contentSecurityPolicy: { directives: { ... } }.
+  app.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
 
   app.use(cookieParser());
 

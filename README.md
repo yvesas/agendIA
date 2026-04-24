@@ -437,7 +437,7 @@ Env injetadas para o e2e replicam o setup local: `TEST_POSTGRES_HOST=localhost`,
 
 Itens deixados fora do escopo atual, com caminho de evolução claro:
 
-1. **Coverage em features do front** — Vitest + Testing Library para `useLogin`/`useRegister`/`useProfile`/booking e cancel flows.
+1. **Coverage em features do front** — Vitest + Testing Library para `useLogin`/`useRegister`/`useProfile`/booking e cancel flows. Backend já tem 111 testes (61 unit + 50 e2e).
 
 2. **Validação do token na edge** — o proxy atual só checa presença do cookie de refresh. Validar assinatura na edge exige `jose` (compatível com Edge Runtime) — corta requests de tokens expirados antes de chegar à API.
 
@@ -445,11 +445,13 @@ Itens deixados fora do escopo atual, com caminho de evolução claro:
 
 4. **Cache invalidation em mutações** — quando houver endpoints de escrita em `/exams`, usar `CACHE_MANAGER` provider global.
 
-5. **Limpeza periódica de `refresh_tokens`** — hoje rows revogadas/expiradas ficam no DB. Um job (cron ou pg_cron) que faz `DELETE WHERE expires_at < now() - interval '30 days' OR revoked_at < now() - interval '30 days'` mantém a tabela enxuta. Enquanto o volume é baixo, dá pra deixar.
+5. **CSP estrito no Next** — hoje só headers básicos (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `HSTS`). Faltaria uma `Content-Security-Policy` ativa, o que exige auditar os bundles do Next (inline scripts de hidratação) e possivelmente nonces por render. Gera retorno real só em produção sob domínio dedicado.
 
-6. **Audit log de sessão** — registrar IP, user-agent e timestamp em cada emissão de refresh token (colunas extras em `refresh_tokens`), + tela "Sessões ativas" no perfil com revogação individual. `revokeById` já existe; falta a UI e captar metadata no controller.
+6. **Marcar sessão atual na lista de "Sessões ativas"** — hoje todas as sessões aparecem iguais. Bastaria o backend incluir um flag `current: boolean` comparando o hash do cookie da request com cada row — ajudaria o usuário a não se auto-deslogar por engano.
 
-7. **CSP e security headers** — `helmet` no Nest + headers agressivos de CSP no Next. O `<dialog>` nativo e bundles próprios tornam CSP estrito viável sem inline scripts.
+7. **Notificação de login suspeito** — comparar IP/UA do login com o histórico de `refresh_tokens`; se divergente, enviar email de alerta (ou WebAuthn step-up). Requer serviço de email plugado.
+
+8. **Audit log persistido** — hoje `refresh_tokens.last_used_at` só registra a última rotação. Um log append-only (`auth_events`: login-success/fail, password-change, session-revoked, account-deleted) facilitaria forense e compliance.
 
 ---
 

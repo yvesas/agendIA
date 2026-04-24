@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException, UnauthorizedException } from '@ne
 
 import { AppointmentsRepository } from '../appointments/appointments.repository';
 import { PasswordHasher } from '../auth/password-hasher';
+import { RefreshTokensRepository } from '../auth/refresh-tokens.repository';
 import { type User } from '../db/schema/users';
 
 import { UsersRepository } from './users.repository';
@@ -11,6 +12,7 @@ describe('UsersService', () => {
   let users: jest.Mocked<UsersRepository>;
   let hasher: jest.Mocked<PasswordHasher>;
   let appointments: jest.Mocked<AppointmentsRepository>;
+  let refreshTokens: jest.Mocked<RefreshTokensRepository>;
   let service: UsersService;
 
   const STORED_USER: User = {
@@ -44,7 +46,15 @@ describe('UsersService', () => {
       updateStatus: jest.fn(),
     } as unknown as jest.Mocked<AppointmentsRepository>;
 
-    service = new UsersService(users, hasher, appointments);
+    refreshTokens = {
+      create: jest.fn(),
+      findActiveByHash: jest.fn(),
+      revokeById: jest.fn(),
+      revokeByHash: jest.fn(),
+      revokeAllForUser: jest.fn(),
+    } as unknown as jest.Mocked<RefreshTokensRepository>;
+
+    service = new UsersService(users, hasher, appointments, refreshTokens);
   });
 
   describe('getById', () => {
@@ -136,7 +146,7 @@ describe('UsersService', () => {
   });
 
   describe('changePassword', () => {
-    it('verifies the current password before hashing and updating', async () => {
+    it('verifies the current password before hashing and updating, revoga sessões', async () => {
       users.findById.mockResolvedValue(STORED_USER);
       hasher.compare.mockResolvedValue(true);
       hasher.hash.mockResolvedValue('new-hash');
@@ -150,6 +160,7 @@ describe('UsersService', () => {
       expect(hasher.compare).toHaveBeenCalledWith('right', STORED_USER.passwordHash);
       expect(hasher.hash).toHaveBeenCalledWith('NewPass@123');
       expect(users.update).toHaveBeenCalledWith(STORED_USER.id, { passwordHash: 'new-hash' });
+      expect(refreshTokens.revokeAllForUser).toHaveBeenCalledWith(STORED_USER.id);
     });
 
     it('throws UnauthorizedException when the current password does not match', async () => {

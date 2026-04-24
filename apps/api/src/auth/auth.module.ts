@@ -10,11 +10,13 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
 import { PasswordHasher } from './password-hasher';
+import { RefreshTokensModule } from './refresh-tokens.module';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
+    RefreshTokensModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<EnvVars, true>) => ({

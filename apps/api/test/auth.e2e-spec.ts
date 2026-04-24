@@ -16,6 +16,15 @@ function expectAuthCookies(headers: Record<string, unknown>): void {
   expect(joined).toMatch(/SameSite=Lax/i);
 }
 
+function extractRefreshCookie(headers: Record<string, unknown>): string {
+  const setCookie = headers['set-cookie'];
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const match = cookies.map((c) => String(c)).find((c) => c.startsWith(`${REFRESH_TOKEN_COOKIE}=`));
+  if (!match) throw new Error('refresh cookie not set');
+  const [pair] = match.split(';');
+  return pair;
+}
+
 describe('Auth (e2e)', () => {
   let ctx: TestAppContext;
 
@@ -161,6 +170,96 @@ describe('Auth (e2e)', () => {
       expect(joined).toContain(ACCESS_TOKEN_COOKIE);
       expect(joined).toContain(REFRESH_TOKEN_COOKIE);
       expect(joined).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/i);
+    });
+
+    it('revoga o refresh no DB — uso posterior do token antigo falha', async () => {
+      // registerUser faz o register e o agent guarda os cookies
+      const registerResponse = await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          name: 'Logout Reuse',
+          email: `logout-${Date.now()}@test.app`,
+          password: 'Str0ng@Pass!',
+        })
+        .expect(201);
+
+      const originalRefreshCookie = extractRefreshCookie(registerResponse.headers);
+
+      await request(ctx.app.getHttpServer())
+        .post('/auth/logout')
+        .set('Cookie', originalRefreshCookie)
+        .expect(204);
+
+      // Mesmo cookie — mas já foi revogado no DB
+      await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', originalRefreshCookie)
+        .expect(401);
+    });
+  });
+
+  describe('rotação de refresh token', () => {
+    it('rotação em cadeia: cada novo token funciona uma vez', async () => {
+      const registerResponse = await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          name: 'Rotation Test',
+          email: `rotate-${Date.now()}@test.app`,
+          password: 'Str0ng@Pass!',
+        })
+        .expect(201);
+
+      const cookieFromRegister = extractRefreshCookie(registerResponse.headers);
+
+      // Primeira rotação
+      const r1 = await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', cookieFromRegister)
+        .expect(200);
+      const cookie2 = extractRefreshCookie(r1.headers);
+      expect(cookie2).not.toBe(cookieFromRegister);
+
+      // Segunda rotação com o novo cookie — ainda válido
+      const r2 = await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', cookie2)
+        .expect(200);
+      const cookie3 = extractRefreshCookie(r2.headers);
+      expect(cookie3).not.toBe(cookie2);
+    });
+
+    it('reuso de token já rotacionado → 401 e invalida a família (defesa de replay)', async () => {
+      const registerResponse = await request(ctx.app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          name: 'Replay Defense',
+          email: `replay-${Date.now()}@test.app`,
+          password: 'Str0ng@Pass!',
+        })
+        .expect(201);
+
+      const oldRefreshCookie = extractRefreshCookie(registerResponse.headers);
+
+      // Rotação legítima
+      const firstRefresh = await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', oldRefreshCookie)
+        .expect(200);
+
+      const newRefreshCookie = extractRefreshCookie(firstRefresh.headers);
+
+      // "Atacante" tenta reusar R1 já revogado
+      await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', oldRefreshCookie)
+        .expect(401);
+
+      // Defesa: R2 também é invalidado ao detectar o reuso.
+      // Usuário legítimo precisará autenticar de novo — comportamento proposital.
+      await request(ctx.app.getHttpServer())
+        .post('/auth/refresh')
+        .set('Cookie', newRefreshCookie)
+        .expect(401);
     });
   });
 });

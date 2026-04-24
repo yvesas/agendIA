@@ -11,6 +11,7 @@ import {
   AppointmentsRepository,
 } from '../appointments/appointments.repository';
 import { PasswordHasher } from '../auth/password-hasher';
+import { RefreshTokensRepository } from '../auth/refresh-tokens.repository';
 import { type User } from '../db/schema/users';
 
 import { UsersRepository } from './users.repository';
@@ -35,6 +36,7 @@ export class UsersService {
     private readonly users: UsersRepository,
     private readonly hasher: PasswordHasher,
     private readonly appointments: AppointmentsRepository,
+    private readonly refreshTokens: RefreshTokensRepository,
   ) {}
 
   async getById(id: string): Promise<PublicUser> {
@@ -84,6 +86,9 @@ export class UsersService {
 
     const passwordHash = await this.hasher.hash(dto.newPassword);
     await this.users.update(id, { passwordHash });
+    // Troca de senha invalida todas as sessões ativas — comportamento padrão
+    // de segurança (sessões em outros dispositivos precisam reautenticar).
+    await this.refreshTokens.revokeAllForUser(id);
   }
 
   async deleteAccount(id: string): Promise<void> {

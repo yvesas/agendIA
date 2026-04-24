@@ -8,6 +8,13 @@
       "when": 1776890810674,
       "tag": "0000_serious_tigra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777051306074,
+      "tag": "0001_add_refresh_tokens",
+      "breakpoints": true
     }
   ]
 }

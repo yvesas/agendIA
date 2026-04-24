@@ -53,8 +53,6 @@ email:    demo@agendia.app
 password: Agendia@123
 ```
 
-> A senha do demo atende às novas regras de senha forte (≥8 chars + maiúscula + minúscula + número + especial). O seed faz `upsert` — se você trocar a senha do demo manualmente, na próxima inicialização o seed reseta para `Agendia@123`.
-
 Se as portas padrão já estiverem em uso, sobrescreva:
 
 ```bash

@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { type Appointment } from '../db/schema/appointments';
 import { type Exam } from '../db/schema/exams';
@@ -33,6 +38,7 @@ describe('AppointmentsService', () => {
       findManyByUser: jest.fn(),
       findOverlapping: jest.fn(),
       create: jest.fn(),
+      updateStatus: jest.fn(),
     } as unknown as jest.Mocked<AppointmentsRepository>;
 
     exams = {
@@ -168,6 +174,84 @@ describe('AppointmentsService', () => {
       await service.listByUser('user-42', 'SCHEDULED');
 
       expect(repository.findManyByUser).toHaveBeenCalledWith('user-42', 'SCHEDULED');
+    });
+  });
+
+  describe('cancel', () => {
+    const ownerId = 'user-1';
+
+    function buildAppointment(overrides: Partial<Appointment> = {}): Appointment {
+      return {
+        id: 'appt-1',
+        userId: ownerId,
+        examId: EXAM.id,
+        scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+        status: 'SCHEDULED',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ...overrides,
+      };
+    }
+
+    it('flips status to CANCELLED when scheduled and in the future', async () => {
+      const existing = buildAppointment();
+      const cancelled = { ...existing, status: 'CANCELLED' as const };
+      repository.findById.mockResolvedValue(existing);
+      repository.updateStatus.mockResolvedValue(cancelled);
+
+      const result = await service.cancel(ownerId, existing.id);
+
+      expect(repository.updateStatus).toHaveBeenCalledWith(existing.id, 'CANCELLED');
+      expect(result).toBe(cancelled);
+    });
+
+    it('raises NotFoundException when the appointment does not exist', async () => {
+      repository.findById.mockResolvedValue(undefined);
+
+      await expect(service.cancel(ownerId, 'missing')).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('raises ForbiddenException when the caller does not own the appointment', async () => {
+      repository.findById.mockResolvedValue(buildAppointment({ userId: 'someone-else' }));
+
+      await expect(service.cancel(ownerId, 'appt-1')).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('raises ConflictException when already cancelled', async () => {
+      repository.findById.mockResolvedValue(buildAppointment({ status: 'CANCELLED' }));
+
+      await expect(service.cancel(ownerId, 'appt-1')).rejects.toBeInstanceOf(ConflictException);
+
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('raises ConflictException when already DONE', async () => {
+      repository.findById.mockResolvedValue(buildAppointment({ status: 'DONE' }));
+
+      await expect(service.cancel(ownerId, 'appt-1')).rejects.toBeInstanceOf(ConflictException);
+
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('raises ConflictException when the appointment is in the past', async () => {
+      repository.findById.mockResolvedValue(
+        buildAppointment({ scheduledAt: new Date(Date.now() - 60 * 60 * 1000) }),
+      );
+
+      await expect(service.cancel(ownerId, 'appt-1')).rejects.toBeInstanceOf(ConflictException);
+
+      expect(repository.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('raises NotFoundException if updateStatus unexpectedly returns undefined', async () => {
+      repository.findById.mockResolvedValue(buildAppointment());
+      repository.updateStatus.mockResolvedValue(undefined);
+
+      await expect(service.cancel(ownerId, 'appt-1')).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

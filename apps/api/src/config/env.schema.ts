@@ -20,6 +20,8 @@ export const envSchema = z.object({
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(4).max(20).default(12),
 
   EXAMS_CACHE_TTL_SECONDS: z.coerce.number().int().positive().default(300),
+
+  REFRESH_TOKENS_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
 });
 
 export type EnvVars = z.infer<typeof envSchema>;

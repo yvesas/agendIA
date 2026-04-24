@@ -1,5 +1,6 @@
 import { Module, type Provider } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 
 import { AppointmentsModule } from './appointments/appointments.module';
@@ -30,6 +31,9 @@ const providers: Provider[] = [
   imports: [
     ConfigModule,
     CacheModule,
+    // Jobs recorrentes (limpeza de refresh_tokens). Em NODE_ENV=test o
+    // ScheduleModule é desligado para não segurar o event loop das suítes.
+    ...(isTestEnv ? [] : [ScheduleModule.forRoot()]),
     ThrottlerStorageModule,
     ThrottlerModule.forRootAsync({
       imports: [ThrottlerStorageModule],

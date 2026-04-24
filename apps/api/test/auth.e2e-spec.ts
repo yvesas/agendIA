@@ -21,8 +21,8 @@ function extractRefreshCookie(headers: Record<string, unknown>): string {
   const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
   const match = cookies.map((c) => String(c)).find((c) => c.startsWith(`${REFRESH_TOKEN_COOKIE}=`));
   if (!match) throw new Error('refresh cookie not set');
-  const [pair] = match.split(';');
-  return pair;
+  // split sempre devolve ao menos um elemento; o ?? é só para o noUncheckedIndexedAccess
+  return match.split(';')[0] ?? match;
 }
 
 describe('Auth (e2e)', () => {

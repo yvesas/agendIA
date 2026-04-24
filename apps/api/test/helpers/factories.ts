@@ -1,4 +1,5 @@
 import request from 'supertest';
+import type TestAgent from 'supertest/lib/agent';
 
 import type { Database } from '../../src/db/database.module';
 import { type NewExam, exams } from '../../src/db/schema/exams';
@@ -9,8 +10,7 @@ export interface RegisteredUser {
   id: string;
   email: string;
   name: string;
-  accessToken: string;
-  refreshToken: string;
+  agent: TestAgent;
 }
 
 const DEFAULT_EXAM: NewExam = {
@@ -43,14 +43,10 @@ export async function registerUser(
     password: overrides.password ?? 'Str0ng@Pass!',
   };
 
-  const response = await request(ctx.app.getHttpServer())
-    .post('/auth/register')
-    .send(payload)
-    .expect(201);
+  const agent = request.agent(ctx.app.getHttpServer());
+  const response = await agent.post('/auth/register').send(payload).expect(201);
 
   const body = response.body as {
-    accessToken: string;
-    refreshToken: string;
     user: { id: string; email: string; name: string };
   };
 
@@ -58,13 +54,8 @@ export async function registerUser(
     id: body.user.id,
     email: body.user.email,
     name: body.user.name,
-    accessToken: body.accessToken,
-    refreshToken: body.refreshToken,
+    agent,
   };
-}
-
-export function authHeader(user: RegisteredUser): { Authorization: string } {
-  return { Authorization: `Bearer ${user.accessToken}` };
 }
 
 export function futureIso(offsetMs = 24 * 60 * 60 * 1000): string {

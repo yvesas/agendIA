@@ -1,8 +1,20 @@
 import request from 'supertest';
 
+import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '../src/auth/auth-cookies';
+
 import { createTestApp, type TestAppContext } from './helpers/app';
 import { truncateAll } from './helpers/db-cleanup';
 import { registerUser } from './helpers/factories';
+
+function expectAuthCookies(headers: Record<string, unknown>): void {
+  const setCookie = headers['set-cookie'];
+  const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+  const joined = cookies.join('\n');
+  expect(joined).toContain(`${ACCESS_TOKEN_COOKIE}=`);
+  expect(joined).toContain(`${REFRESH_TOKEN_COOKIE}=`);
+  expect(joined).toMatch(/HttpOnly/i);
+  expect(joined).toMatch(/SameSite=Lax/i);
+}
 
 describe('Auth (e2e)', () => {
   let ctx: TestAppContext;
@@ -20,7 +32,7 @@ describe('Auth (e2e)', () => {
   });
 
   describe('POST /auth/register', () => {
-    it('cria usuário e retorna tokens', async () => {
+    it('cria usuário, retorna { user } no body e emite Set-Cookie httpOnly', async () => {
       const response = await request(ctx.app.getHttpServer())
         .post('/auth/register')
         .send({
@@ -31,14 +43,11 @@ describe('Auth (e2e)', () => {
         .expect(201);
 
       expect(response.body).toEqual({
-        accessToken: expect.any(String),
-        refreshToken: expect.any(String),
-        user: {
-          id: expect.any(String),
-          email: 'ana@test.app',
-          name: 'Ana Silva',
-        },
+        user: { id: expect.any(String), email: 'ana@test.app', name: 'Ana Silva' },
       });
+      expect(response.body).not.toHaveProperty('accessToken');
+      expect(response.body).not.toHaveProperty('refreshToken');
+      expectAuthCookies(response.headers);
     });
 
     it('rejeita senha fraca com 400 e mensagem por field', async () => {
@@ -78,7 +87,7 @@ describe('Auth (e2e)', () => {
   });
 
   describe('POST /auth/login', () => {
-    it('autentica com credenciais corretas', async () => {
+    it('autentica, seta cookies httpOnly e devolve só { user }', async () => {
       const user = await registerUser(ctx, { password: 'Str0ng@Pass!' });
 
       const response = await request(ctx.app.getHttpServer())
@@ -86,9 +95,10 @@ describe('Auth (e2e)', () => {
         .send({ email: user.email, password: 'Str0ng@Pass!' })
         .expect(200);
 
-      expect(response.body.accessToken).toEqual(expect.any(String));
-      expect(response.body.refreshToken).toEqual(expect.any(String));
-      expect(response.body.user.id).toBe(user.id);
+      expect(response.body).toEqual({
+        user: { id: user.id, email: user.email, name: user.name },
+      });
+      expectAuthCookies(response.headers);
     });
 
     it('devolve 401 para senha errada', async () => {
@@ -109,23 +119,21 @@ describe('Auth (e2e)', () => {
   });
 
   describe('POST /auth/refresh', () => {
-    it('emite novos tokens a partir de um refresh válido', async () => {
+    it('emite novos cookies a partir do refresh cookie do agent', async () => {
       const user = await registerUser(ctx);
 
-      const response = await request(ctx.app.getHttpServer())
-        .post('/auth/refresh')
-        .send({ refreshToken: user.refreshToken })
-        .expect(200);
+      const response = await user.agent.post('/auth/refresh').expect(200);
 
-      expect(response.body.accessToken).toEqual(expect.any(String));
-      expect(response.body.refreshToken).toEqual(expect.any(String));
-      expect(response.body.user.id).toBe(user.id);
+      expect(response.body).toEqual({
+        user: { id: user.id, email: user.email, name: user.name },
+      });
+      expectAuthCookies(response.headers);
     });
 
-    it('devolve 401 para refresh token inválido', async () => {
+    it('devolve 401 para refresh cookie inválido', async () => {
       await request(ctx.app.getHttpServer())
         .post('/auth/refresh')
-        .send({ refreshToken: 'not-a-real-jwt' })
+        .set('Cookie', `${REFRESH_TOKEN_COOKIE}=not-a-real-jwt`)
         .expect(401);
     });
 
@@ -133,14 +141,26 @@ describe('Auth (e2e)', () => {
       const user = await registerUser(ctx);
       await truncateAll(ctx.db);
 
-      await request(ctx.app.getHttpServer())
-        .post('/auth/refresh')
-        .send({ refreshToken: user.refreshToken })
-        .expect(401);
+      await user.agent.post('/auth/refresh').expect(401);
     });
 
-    it('rejeita body sem refreshToken com 400', async () => {
-      await request(ctx.app.getHttpServer()).post('/auth/refresh').send({}).expect(400);
+    it('devolve 401 sem cookie nem body', async () => {
+      await request(ctx.app.getHttpServer()).post('/auth/refresh').expect(401);
+    });
+  });
+
+  describe('POST /auth/logout', () => {
+    it('expira os cookies (Max-Age=0)', async () => {
+      const user = await registerUser(ctx);
+
+      const response = await user.agent.post('/auth/logout').expect(204);
+
+      const setCookie = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
+      const joined = cookies.join('\n');
+      expect(joined).toContain(ACCESS_TOKEN_COOKIE);
+      expect(joined).toContain(REFRESH_TOKEN_COOKIE);
+      expect(joined).toMatch(/Expires=Thu, 01 Jan 1970|Max-Age=0/i);
     });
   });
 });

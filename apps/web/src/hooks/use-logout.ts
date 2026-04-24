@@ -5,8 +5,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 
-import { clearAuthTokens } from '@/lib/auth/token-storage';
 import { clearStoredUser } from '@/lib/auth/user-storage';
+import { apiClient } from '@/lib/http';
 
 import { AUTH_QUERY_KEY } from './use-auth';
 
@@ -20,23 +20,30 @@ export function useLogout(): UseLogoutReturn {
   const router = useRouter();
   const pathname = usePathname();
 
-  const clear = useCallback(() => {
-    clearAuthTokens();
+  const clear = useCallback(async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // Logout é best-effort — se a API estiver fora ou o token já expirou,
+      // o cliente ainda deve ficar deslogado localmente.
+    }
     clearStoredUser();
     queryClient.setQueryData(AUTH_QUERY_KEY, null);
     queryClient.clear();
   }, [queryClient]);
 
   const logout = useCallback(() => {
-    clear();
-    toast.success('Sessão encerrada.');
-    router.push(buildLoginPath(pathname));
+    void clear().then(() => {
+      toast.success('Sessão encerrada.');
+      router.push(buildLoginPath(pathname));
+    });
   }, [clear, router, pathname]);
 
   const logoutSilent = useCallback(
     (redirectTo?: string) => {
-      clear();
-      router.replace(redirectTo ?? buildLoginPath(pathname));
+      void clear().then(() => {
+        router.replace(redirectTo ?? buildLoginPath(pathname));
+      });
     },
     [clear, router, pathname],
   );

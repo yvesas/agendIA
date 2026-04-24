@@ -1,6 +1,5 @@
 import { emitSessionExpired } from '../auth/session-events';
-import { clearAuthTokens, getAccessToken } from '../auth/token-storage';
-import { clearStoredUser } from '../auth/user-storage';
+import { clearStoredUser, getStoredUser } from '../auth/user-storage';
 
 import { ApiClient } from './api-client';
 import { createRefreshStrategy } from './refresh-strategy';
@@ -9,15 +8,14 @@ const DEFAULT_BASE_URL = 'http://localhost:3001';
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 
 function handleSessionExpired(): void {
-  clearAuthTokens();
   clearStoredUser();
   emitSessionExpired();
 }
 
 export const apiClient = new ApiClient({
   baseUrl,
-  getToken: getAccessToken,
-  refreshToken: createRefreshStrategy(baseUrl),
+  hasSession: () => getStoredUser() !== null,
+  refresh: createRefreshStrategy(baseUrl),
   onSessionExpired: handleSessionExpired,
 });
 

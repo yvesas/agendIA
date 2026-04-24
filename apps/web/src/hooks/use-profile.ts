@@ -8,7 +8,6 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 
-import { clearAuthTokens } from '@/lib/auth/token-storage';
 import {
   type StoredUser,
   clearStoredUser,
@@ -68,7 +67,8 @@ export function useDeleteAccount(): UseMutationResult<void, ApiError, void> {
   return useMutation<void, ApiError, void>({
     mutationFn: () => apiClient.delete<void>('/users/me'),
     onSuccess: () => {
-      clearAuthTokens();
+      // O DELETE em si já derruba a sessão no servidor (usuário removido do banco);
+      // aqui só limpamos o estado local.
       clearStoredUser();
       queryClient.clear();
     },

@@ -9,8 +9,8 @@ export interface RequestOptions {
 
 interface ApiClientOptions {
   baseUrl: string;
-  getToken: () => string | null;
-  refreshToken?: () => Promise<string | null>;
+  hasSession: () => boolean;
+  refresh?: () => Promise<boolean>;
   onSessionExpired?: () => void;
 }
 
@@ -19,7 +19,7 @@ const NO_CONTENT_STATUS = 204;
 const UNAUTHORIZED_STATUS = 401;
 
 export class ApiClient {
-  private refreshPromise: Promise<string | null> | null = null;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(private readonly options: ApiClientOptions) {}
 
@@ -50,26 +50,26 @@ export class ApiClient {
     options?: RequestOptions,
     isRetry = false,
   ): Promise<T> {
-    const hadToken = this.options.getToken() !== null;
+    const hadSession = this.options.hasSession();
     const url = this.buildUrl(path, options?.params);
     const response = await fetch(url, {
       method,
       headers: this.buildHeaders(body),
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: options?.signal,
-      credentials: 'omit',
+      credentials: 'include',
     });
 
     if (
       response.status === UNAUTHORIZED_STATUS &&
       !isRetry &&
-      this.options.refreshToken
+      this.options.refresh
     ) {
-      const newToken = await this.attemptRefresh();
-      if (newToken) {
+      const refreshed = await this.attemptRefresh();
+      if (refreshed) {
         return this.request<T>(method, path, body, options, true);
       }
-      if (hadToken) {
+      if (hadSession) {
         this.options.onSessionExpired?.();
       }
     }
@@ -86,13 +86,13 @@ export class ApiClient {
     return (await response.json()) as T;
   }
 
-  private async attemptRefresh(): Promise<string | null> {
-    if (!this.options.refreshToken) {
-      return null;
+  private async attemptRefresh(): Promise<boolean> {
+    if (!this.options.refresh) {
+      return false;
     }
     if (!this.refreshPromise) {
-      this.refreshPromise = Promise.resolve(this.options.refreshToken())
-        .catch(() => null)
+      this.refreshPromise = Promise.resolve(this.options.refresh())
+        .catch(() => false)
         .finally(() => {
           this.refreshPromise = null;
         });
@@ -120,11 +120,6 @@ export class ApiClient {
 
     if (body !== undefined) {
       headers['Content-Type'] = 'application/json';
-    }
-
-    const token = this.options.getToken();
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
     }
 
     return headers;

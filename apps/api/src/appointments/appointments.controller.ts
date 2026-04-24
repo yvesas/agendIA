@@ -4,6 +4,9 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -42,5 +45,13 @@ export class AppointmentsController {
     @Query() query: AppointmentsQueryDto,
   ): Promise<AppointmentWithExam[]> {
     return this.appointments.listByUser(user.id, query.status);
+  }
+
+  @Patch(':id/cancel')
+  cancel(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ): Promise<Appointment> {
+    return this.appointments.cancel(user.id, id);
   }
 }

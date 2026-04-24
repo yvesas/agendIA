@@ -1,4 +1,10 @@
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { type Appointment, type AppointmentStatus } from '../db/schema/appointments';
 import { type Exam } from '../db/schema/exams';
@@ -31,6 +37,36 @@ export class AppointmentsService {
 
   listByUser(userId: string, status?: AppointmentStatus): Promise<AppointmentWithExam[]> {
     return this.repository.findManyByUser(userId, status);
+  }
+
+  async cancel(userId: string, appointmentId: string): Promise<Appointment> {
+    const existing = await this.repository.findById(appointmentId);
+
+    if (!existing) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (existing.userId !== userId) {
+      throw new ForbiddenException('You can only cancel your own appointments');
+    }
+
+    if (existing.status !== 'SCHEDULED') {
+      throw new ConflictException(
+        existing.status === 'CANCELLED'
+          ? 'Appointment is already cancelled'
+          : 'Only scheduled appointments can be cancelled',
+      );
+    }
+
+    if (existing.scheduledAt.getTime() <= Date.now()) {
+      throw new ConflictException('Cannot cancel a past appointment');
+    }
+
+    const updated = await this.repository.updateStatus(appointmentId, 'CANCELLED');
+    if (!updated) {
+      throw new NotFoundException('Appointment not found');
+    }
+    return updated;
   }
 
   private parseFutureDate(raw: string): Date {

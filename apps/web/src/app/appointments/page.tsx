@@ -12,6 +12,8 @@ import {
 } from '@/lib/utils/format';
 import type { AppointmentStatus, AppointmentWithExam } from '@/types/appointment';
 
+import { CancelAppointmentButton } from './cancel-appointment-button';
+
 const SKELETON_COUNT = 3;
 
 export default function AppointmentsPage() {
@@ -105,7 +107,8 @@ function Section({ title, emptyMessage, items, isFetching }: SectionProps) {
 }
 
 function AppointmentCard({ appointment }: { appointment: AppointmentWithExam }) {
-  const { exam, scheduledAt, status } = appointment;
+  const { id, exam, scheduledAt, status } = appointment;
+  const canCancel = status === 'SCHEDULED' && new Date(scheduledAt).getTime() > Date.now();
 
   return (
     <article className="border-border bg-background flex flex-col gap-3 rounded-lg border p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -126,7 +129,16 @@ function AppointmentCard({ appointment }: { appointment: AppointmentWithExam }) 
           {formatDurationMinutes(exam.durationMin)} · {formatPriceFromCents(exam.priceCents)}
         </p>
       </div>
-      <StatusBadge status={status} />
+      <div className="flex items-center gap-3">
+        <StatusBadge status={status} />
+        {canCancel ? (
+          <CancelAppointmentButton
+            appointmentId={id}
+            examName={exam.name}
+            scheduledAt={scheduledAt}
+          />
+        ) : null}
+      </div>
     </article>
   );
 }

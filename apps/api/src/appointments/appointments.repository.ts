@@ -71,4 +71,14 @@ export class AppointmentsRepository {
 
     return row;
   }
+
+  async updateStatus(id: string, status: AppointmentStatus): Promise<Appointment | undefined> {
+    const [row] = await this.db
+      .update(appointments)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(appointments.id, id))
+      .returning();
+
+    return row;
+  }
 }

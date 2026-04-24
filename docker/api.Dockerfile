@@ -9,10 +9,15 @@ WORKDIR /repo
 
 # Only workspace manifests first, so `npm ci` layer is cached until deps change.
 COPY package.json package-lock.json tsconfig.base.json ./
+COPY packages/contracts/package.json ./packages/contracts/package.json
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 
 RUN npm ci
+
+# Build the shared contracts package first so api can import from it.
+COPY packages/contracts ./packages/contracts
+RUN npm run build --workspace=@agendia/contracts
 
 # Copy api sources (web sources are not needed to build the api).
 COPY apps/api ./apps/api
@@ -32,6 +37,8 @@ WORKDIR /app
 # only appear under apps/api/node_modules.
 COPY --from=builder /repo/package.json /repo/package-lock.json ./
 COPY --from=builder /repo/node_modules ./node_modules
+COPY --from=builder /repo/packages/contracts/package.json ./packages/contracts/package.json
+COPY --from=builder /repo/packages/contracts/dist ./packages/contracts/dist
 COPY --from=builder /repo/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /repo/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /repo/apps/api/dist ./apps/api/dist

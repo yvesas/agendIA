@@ -5,11 +5,11 @@ import { type UseMutationResult, useMutation, useQueryClient } from '@tanstack/r
 import { setAuthTokens } from '@/lib/auth/token-storage';
 import { type StoredUser, setStoredUser } from '@/lib/auth/user-storage';
 import { ApiError, apiClient } from '@/lib/http';
-import { type LoginInput } from '@/lib/validators/auth';
+import { type RegisterInput } from '@/lib/validators/auth';
 
 import { AUTH_QUERY_KEY } from './use-auth';
 
-export type { LoginInput };
+export type { RegisterInput };
 
 interface AuthResponse {
   accessToken: string;
@@ -17,11 +17,11 @@ interface AuthResponse {
   user: StoredUser;
 }
 
-export function useLogin(): UseMutationResult<AuthResponse, ApiError, LoginInput> {
+export function useRegister(): UseMutationResult<AuthResponse, ApiError, RegisterInput> {
   const queryClient = useQueryClient();
 
-  return useMutation<AuthResponse, ApiError, LoginInput>({
-    mutationFn: (input) => apiClient.post<AuthResponse>('/auth/login', input),
+  return useMutation<AuthResponse, ApiError, RegisterInput>({
+    mutationFn: (input) => apiClient.post<AuthResponse>('/auth/register', input),
     onSuccess: (data) => {
       setAuthTokens(data.accessToken, data.refreshToken);
       setStoredUser(data.user);

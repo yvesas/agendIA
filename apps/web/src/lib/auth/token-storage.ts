@@ -1,26 +1,37 @@
-export const AUTH_TOKEN_COOKIE = 'agendia:accessToken';
+export const ACCESS_TOKEN_COOKIE = 'agendia_access_token';
+export const REFRESH_TOKEN_COOKIE = 'agendia_refresh_token';
 
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24;
+const ACCESS_MAX_AGE_SECONDS = 60 * 60;
+const REFRESH_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
-export function getStoredToken(): string | null {
+export function getAccessToken(): string | null {
   if (typeof document === 'undefined') {
     return null;
   }
-  return readCookie(AUTH_TOKEN_COOKIE);
+  return readCookie(ACCESS_TOKEN_COOKIE);
 }
 
-export function setStoredToken(token: string): void {
+export function getRefreshToken(): string | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  return readCookie(REFRESH_TOKEN_COOKIE);
+}
+
+export function setAuthTokens(accessToken: string, refreshToken: string): void {
   if (typeof document === 'undefined') {
     return;
   }
-  writeCookie(AUTH_TOKEN_COOKIE, token, COOKIE_MAX_AGE_SECONDS);
+  writeCookie(ACCESS_TOKEN_COOKIE, accessToken, ACCESS_MAX_AGE_SECONDS);
+  writeCookie(REFRESH_TOKEN_COOKIE, refreshToken, REFRESH_MAX_AGE_SECONDS);
 }
 
-export function clearStoredToken(): void {
+export function clearAuthTokens(): void {
   if (typeof document === 'undefined') {
     return;
   }
-  deleteCookie(AUTH_TOKEN_COOKIE);
+  deleteCookie(ACCESS_TOKEN_COOKIE);
+  deleteCookie(REFRESH_TOKEN_COOKIE);
 }
 
 function readCookie(name: string): string | null {

@@ -5,6 +5,7 @@
   "description": "Portal de agendamento de exames para redes de laboratórios",
   "license": "MIT",
   "workspaces": [
+    "packages/*",
     "apps/*"
   ],
   "engines": {

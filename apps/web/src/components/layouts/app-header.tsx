@@ -40,20 +40,37 @@ export function AppHeader() {
 
         {isAuthenticated && user ? (
           <div className="flex items-center gap-2 sm:gap-3">
-            <span className="text-muted-foreground hidden max-w-[200px] truncate text-sm sm:inline">
+            <Link
+              href="/profile"
+              aria-current={pathname === '/profile' ? 'page' : undefined}
+              className={cn(
+                'hover:text-foreground hidden max-w-[200px] truncate rounded-md px-2 py-1 text-sm transition-colors sm:inline-block',
+                pathname === '/profile'
+                  ? 'bg-muted text-foreground'
+                  : 'text-muted-foreground',
+              )}
+            >
               Olá, {firstName(user.name)}
-            </span>
-            <Button type="button" variant="ghost" size="sm" onClick={logout}>
+            </Link>
+            <Button type="button" variant="ghost" size="sm" onClick={() => logout()}>
               Sair
             </Button>
           </div>
         ) : (
-          <Link
-            href="/login"
-            className="text-foreground hover:text-brand text-sm font-medium transition-colors"
-          >
-            Entrar
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="text-foreground hover:text-brand text-sm font-medium transition-colors"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/register"
+              className="bg-brand text-brand-foreground hover:opacity-90 inline-flex h-8 items-center rounded-md px-3 text-sm font-semibold transition-opacity"
+            >
+              Cadastrar
+            </Link>
+          </div>
         )}
       </div>
     </header>

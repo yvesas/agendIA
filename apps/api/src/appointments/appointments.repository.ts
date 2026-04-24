@@ -55,7 +55,7 @@ export class AppointmentsRepository {
           eq(appointments.userId, userId),
           ne(appointments.status, 'CANCELLED'),
           lt(appointments.scheduledAt, end),
-          sql`${appointments.scheduledAt} + make_interval(mins => ${exams.durationMin}) > ${start}`,
+          sql`${appointments.scheduledAt} + make_interval(mins => ${exams.durationMin}) > ${start.toISOString()}`,
         ),
       );
 

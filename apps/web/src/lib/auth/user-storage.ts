@@ -11,7 +11,7 @@ export function getStoredUser(): StoredUser | null {
     return null;
   }
 
-  const raw = window.sessionStorage.getItem(USER_STORAGE_KEY);
+  const raw = window.localStorage.getItem(USER_STORAGE_KEY);
   if (!raw) {
     return null;
   }
@@ -28,14 +28,14 @@ export function setStoredUser(user: StoredUser): void {
   if (typeof window === 'undefined') {
     return;
   }
-  window.sessionStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+  window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
 }
 
 export function clearStoredUser(): void {
   if (typeof window === 'undefined') {
     return;
   }
-  window.sessionStorage.removeItem(USER_STORAGE_KEY);
+  window.localStorage.removeItem(USER_STORAGE_KEY);
 }
 
 function isStoredUser(value: unknown): value is StoredUser {

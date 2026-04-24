@@ -76,6 +76,9 @@ export function BookingModal({ exam, open, onClose }: BookingModalProps) {
       toast.success('Agendamento confirmado!');
       onClose();
     } catch (error) {
+      if (error instanceof ApiError && error.isUnauthorized) {
+        return;
+      }
       const message =
         error instanceof ApiError ? error.displayMessage : 'Falha ao agendar.';
       toast.error(message);
@@ -90,7 +93,7 @@ export function BookingModal({ exam, open, onClose }: BookingModalProps) {
       onClose={onClose}
       onCancel={onClose}
       aria-labelledby={titleId}
-      className="backdrop:bg-foreground/50 rounded-lg p-0 backdrop:backdrop-blur-sm"
+      className="fixed inset-0 m-auto h-fit w-fit max-w-[90vw] rounded-lg backdrop:bg-foreground/50 backdrop:backdrop-blur-sm"
     >
       <div className="bg-background text-foreground border-border w-[min(480px,90vw)] space-y-5 rounded-lg border p-6">
         <header className="space-y-1.5">

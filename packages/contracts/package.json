@@ -1,0 +1,20 @@
+{
+  "name": "@agendia/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Schemas Zod compartilhados entre API e Web (single source of truth).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

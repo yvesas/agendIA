@@ -24,6 +24,7 @@
     "db:seed:runtime": "node dist/db/seed.js"
   },
   "dependencies": {
+    "@agendia/contracts": "*",
     "@keyv/redis": "^5.1.6",
     "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.0.1",

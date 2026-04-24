@@ -13,39 +13,41 @@ import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/use-auth';
-import { useLogin } from '@/hooks/use-login';
+import { useRegister } from '@/hooks/use-register';
 import { ApiError } from '@/lib/http';
+import { emailSchema, nameSchema, passwordSchema } from '@/lib/validators/auth';
 
-const loginSchema = z.object({
-  email: z.string().min(1, 'Informe seu e-mail').email('E-mail inválido'),
-  password: z.string().min(1, 'Informe sua senha'),
+const registerSchema = z.object({
+  name: nameSchema,
+  email: emailSchema,
+  password: passwordSchema,
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type RegisterForm = z.infer<typeof registerSchema>;
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
-    <Suspense fallback={<LoginSkeleton />}>
-      <LoginScreen />
+    <Suspense fallback={<RegisterSkeleton />}>
+      <RegisterScreen />
     </Suspense>
   );
 }
 
-function LoginScreen() {
+function RegisterScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAuthenticated } = useAuth();
-  const login = useLogin();
+  const register = useRegister();
 
   const redirectTarget = searchParams.get('from') ?? '/exams';
 
   const {
-    register,
+    register: field,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: 'demo@agendia.app', password: 'Agendia@123' },
+  } = useForm<RegisterForm>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: { name: '', email: '', password: '' },
   });
 
   useEffect(() => {
@@ -54,19 +56,19 @@ function LoginScreen() {
     }
   }, [isAuthenticated, redirectTarget, router]);
 
-  async function onSubmit(values: LoginForm) {
+  async function onSubmit(values: RegisterForm) {
     try {
-      await login.mutateAsync(values);
-      toast.success('Bem-vindo ao Agendia.');
+      await register.mutateAsync(values);
+      toast.success('Conta criada com sucesso!');
       router.replace(redirectTarget);
     } catch (error) {
       const message =
-        error instanceof ApiError ? error.displayMessage : 'Não foi possível entrar.';
+        error instanceof ApiError ? error.displayMessage : 'Não foi possível criar sua conta.';
       toast.error(message);
     }
   }
 
-  const pending = login.isPending || isSubmitting;
+  const pending = register.isPending || isSubmitting;
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
@@ -78,13 +80,26 @@ function LoginScreen() {
           >
             Agendia
           </Link>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Entrar</h1>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight">Criar conta</h1>
           <p className="text-muted-foreground mt-2 text-sm">
-            Acesse sua conta para agendar exames.
+            Cadastre-se em segundos para agendar seus exames.
           </p>
         </header>
 
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Nome</Label>
+            <Input
+              id="name"
+              type="text"
+              autoComplete="name"
+              invalid={Boolean(errors.name)}
+              aria-describedby={errors.name ? 'name-error' : undefined}
+              {...field('name')}
+            />
+            <FieldError id="name-error" message={errors.name?.message} />
+          </div>
+
           <div className="space-y-1.5">
             <Label htmlFor="email">E-mail</Label>
             <Input
@@ -94,7 +109,7 @@ function LoginScreen() {
               inputMode="email"
               invalid={Boolean(errors.email)}
               aria-describedby={errors.email ? 'email-error' : undefined}
-              {...register('email')}
+              {...field('email')}
             />
             <FieldError id="email-error" message={errors.email?.message} />
           </div>
@@ -104,46 +119,43 @@ function LoginScreen() {
             <Input
               id="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               invalid={Boolean(errors.password)}
               aria-describedby={errors.password ? 'password-error' : undefined}
-              {...register('password')}
+              {...field('password')}
             />
             <FieldError id="password-error" message={errors.password?.message} />
+            <p className="text-muted-foreground text-xs">
+              Mínimo 8 caracteres, com maiúscula, minúscula, número e caractere especial.
+            </p>
           </div>
 
           <Button type="submit" size="lg" loading={pending} className="w-full">
-            {pending ? 'Entrando...' : 'Entrar'}
+            {pending ? 'Criando conta...' : 'Criar conta'}
           </Button>
         </form>
 
         <p className="text-muted-foreground text-center text-sm">
-          Não tem conta?{' '}
+          Já tem conta?{' '}
           <Link
-            href={{
-              pathname: '/register',
-              query: redirectTarget === '/exams' ? undefined : { from: redirectTarget },
-            }}
+            href={{ pathname: '/login', query: redirectTarget === '/exams' ? undefined : { from: redirectTarget } }}
             className="text-brand font-medium hover:underline"
           >
-            Cadastre-se
+            Entrar
           </Link>
-        </p>
-
-        <p className="text-muted-foreground text-center text-xs">
-          Demo: <strong>demo@agendia.app</strong> / <strong>Agendia@123</strong>
         </p>
       </div>
     </main>
   );
 }
 
-function LoginSkeleton() {
+function RegisterSkeleton() {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm space-y-6" aria-hidden="true">
-        <div className="bg-muted h-8 w-40 animate-pulse rounded" />
+        <div className="bg-muted h-8 w-48 animate-pulse rounded" />
         <div className="space-y-3">
+          <div className="bg-muted h-10 w-full animate-pulse rounded" />
           <div className="bg-muted h-10 w-full animate-pulse rounded" />
           <div className="bg-muted h-10 w-full animate-pulse rounded" />
           <div className="bg-muted h-12 w-full animate-pulse rounded" />

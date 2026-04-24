@@ -10,7 +10,8 @@ export interface RequestOptions {
 interface ApiClientOptions {
   baseUrl: string;
   getToken: () => string | null;
-  onUnauthorized?: () => void;
+  refreshToken?: () => Promise<string | null>;
+  onSessionExpired?: () => void;
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -18,6 +19,8 @@ const NO_CONTENT_STATUS = 204;
 const UNAUTHORIZED_STATUS = 401;
 
 export class ApiClient {
+  private refreshPromise: Promise<string | null> | null = null;
+
   constructor(private readonly options: ApiClientOptions) {}
 
   get<T>(path: string, options?: RequestOptions): Promise<T> {
@@ -45,7 +48,9 @@ export class ApiClient {
     path: string,
     body: unknown,
     options?: RequestOptions,
+    isRetry = false,
   ): Promise<T> {
+    const hadToken = this.options.getToken() !== null;
     const url = this.buildUrl(path, options?.params);
     const response = await fetch(url, {
       method,
@@ -55,8 +60,18 @@ export class ApiClient {
       credentials: 'omit',
     });
 
-    if (response.status === UNAUTHORIZED_STATUS) {
-      this.options.onUnauthorized?.();
+    if (
+      response.status === UNAUTHORIZED_STATUS &&
+      !isRetry &&
+      this.options.refreshToken
+    ) {
+      const newToken = await this.attemptRefresh();
+      if (newToken) {
+        return this.request<T>(method, path, body, options, true);
+      }
+      if (hadToken) {
+        this.options.onSessionExpired?.();
+      }
     }
 
     if (!response.ok) {
@@ -69,6 +84,20 @@ export class ApiClient {
     }
 
     return (await response.json()) as T;
+  }
+
+  private async attemptRefresh(): Promise<string | null> {
+    if (!this.options.refreshToken) {
+      return null;
+    }
+    if (!this.refreshPromise) {
+      this.refreshPromise = Promise.resolve(this.options.refreshToken())
+        .catch(() => null)
+        .finally(() => {
+          this.refreshPromise = null;
+        });
+    }
+    return this.refreshPromise;
   }
 
   private buildUrl(path: string, params: QueryParams | undefined): string {

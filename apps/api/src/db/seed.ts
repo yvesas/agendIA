@@ -12,7 +12,7 @@ const DEFAULT_SALT_ROUNDS = 12;
 const DEMO_USER = {
   name: 'Demo User',
   email: 'demo@agendia.app',
-  password: 'agendia123',
+  password: 'Agendia@123',
 };
 
 const EXAMS: NewExam[] = [
@@ -138,7 +138,10 @@ async function main(): Promise<void> {
         email: DEMO_USER.email,
         passwordHash,
       })
-      .onConflictDoNothing({ target: schema.users.email });
+      .onConflictDoUpdate({
+        target: schema.users.email,
+        set: { name: DEMO_USER.name, passwordHash, updatedAt: new Date() },
+      });
 
     console.log(`Seed complete: ${EXAMS.length} exams and 1 demo user ensured.`);
     console.log(`Demo credentials: ${DEMO_USER.email} / ${DEMO_USER.password}`);

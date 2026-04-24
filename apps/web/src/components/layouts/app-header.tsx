@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
+import { useLogout } from '@/hooks/use-logout';
 import { cn } from '@/lib/utils/cn';
 
 interface NavItem {
@@ -20,7 +21,8 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppHeader() {
   const pathname = usePathname();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { logout } = useLogout();
 
   return (
     <header className="border-border bg-background/80 sticky top-0 z-40 w-full border-b backdrop-blur">
@@ -52,7 +54,7 @@ export function AppHeader() {
             >
               Olá, {firstName(user.name)}
             </Link>
-            <Button type="button" variant="ghost" size="sm" onClick={() => logout()}>
+            <Button type="button" variant="ghost" size="sm" onClick={logout}>
               Sair
             </Button>
           </div>

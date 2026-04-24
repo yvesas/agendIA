@@ -1,27 +1,20 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
-import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 
-import { AUTH_QUERY_KEY } from '@/hooks/use-auth';
+import { useLogout } from '@/hooks/use-logout';
 import { onSessionExpired } from '@/lib/http';
 
 export function SessionGuard() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const queryClient = useQueryClient();
+  const { logoutSilent } = useLogout();
 
   useEffect(() => {
     return onSessionExpired(() => {
-      queryClient.setQueryData(AUTH_QUERY_KEY, null);
-      queryClient.clear();
       toast.error('Sua sessão expirou. Entre novamente para continuar.');
-      const from = pathname && pathname !== '/login' ? `?from=${encodeURIComponent(pathname)}` : '';
-      router.replace(`/login${from}`);
+      logoutSilent();
     });
-  }, [router, pathname, queryClient]);
+  }, [logoutSilent]);
 
   return null;
 }

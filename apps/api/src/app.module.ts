@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, type Provider } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule, seconds } from '@nestjs/throttler';
 
@@ -14,6 +14,14 @@ import { UsersModule } from './users/users.module';
 
 const DEFAULT_THROTTLE_LIMIT = 60;
 
+const throttlerProvider: Provider | null =
+  process.env.NODE_ENV === 'test' ? null : { provide: APP_GUARD, useClass: ThrottlerGuard };
+
+const providers: Provider[] = [
+  { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ...(throttlerProvider ? [throttlerProvider] : []),
+];
+
 @Module({
   imports: [
     ConfigModule,
@@ -28,9 +36,6 @@ const DEFAULT_THROTTLE_LIMIT = 60;
     AppointmentsModule,
     HealthModule,
   ],
-  providers: [
-    { provide: APP_FILTER, useClass: AllExceptionsFilter },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers,
 })
 export class AppModule {}

@@ -44,7 +44,11 @@ export async function registerUser(
   };
 
   const agent = request.agent(ctx.app.getHttpServer());
-  const response = await agent.post('/auth/register').send(payload).expect(201);
+  const response = await agent
+    .post('/auth/register')
+    .set('User-Agent', 'agendia-e2e-suite')
+    .send(payload)
+    .expect(201);
 
   const body = response.body as {
     user: { id: string; email: string; name: string };

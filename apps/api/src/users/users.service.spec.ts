@@ -1,4 +1,9 @@
-import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 
 import { AppointmentsRepository } from '../appointments/appointments.repository';
 import { PasswordHasher } from '../auth/password-hasher';
@@ -49,9 +54,13 @@ describe('UsersService', () => {
     refreshTokens = {
       create: jest.fn(),
       findActiveByHash: jest.fn(),
+      findActiveByUser: jest.fn(),
+      findById: jest.fn(),
+      touchLastUsed: jest.fn(),
       revokeById: jest.fn(),
       revokeByHash: jest.fn(),
       revokeAllForUser: jest.fn(),
+      deleteStale: jest.fn(),
     } as unknown as jest.Mocked<RefreshTokensRepository>;
 
     service = new UsersService(users, hasher, appointments, refreshTokens);
@@ -228,6 +237,102 @@ describe('UsersService', () => {
       await expect(service.exportData('missing')).rejects.toBeInstanceOf(NotFoundException);
 
       expect(appointments.findManyByUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('listSessions', () => {
+    it('retorna sessões ativas com metadata sanitizada', async () => {
+      refreshTokens.findActiveByUser.mockResolvedValue([
+        {
+          id: 'sess-1',
+          userId: STORED_USER.id,
+          tokenHash: 'hash',
+          expiresAt: new Date('2026-05-01T00:00:00Z'),
+          revokedAt: null,
+          createdAt: new Date('2026-04-20T00:00:00Z'),
+          ip: '10.0.0.1',
+          userAgent: 'Mozilla/5.0',
+          lastUsedAt: new Date('2026-04-25T00:00:00Z'),
+        },
+      ]);
+
+      const result = await service.listSessions(STORED_USER.id);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        id: 'sess-1',
+        createdAt: new Date('2026-04-20T00:00:00Z'),
+        lastUsedAt: new Date('2026-04-25T00:00:00Z'),
+        ip: '10.0.0.1',
+        userAgent: 'Mozilla/5.0',
+      });
+      expect(result[0]).not.toHaveProperty('tokenHash');
+    });
+  });
+
+  describe('revokeSession', () => {
+    it('revoga sessão própria', async () => {
+      refreshTokens.findById.mockResolvedValue({
+        id: 'sess-1',
+        userId: STORED_USER.id,
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        revokedAt: null,
+        createdAt: new Date(),
+        ip: null,
+        userAgent: null,
+        lastUsedAt: null,
+      });
+
+      await service.revokeSession(STORED_USER.id, 'sess-1');
+
+      expect(refreshTokens.revokeById).toHaveBeenCalledWith('sess-1');
+    });
+
+    it('NotFoundException se sessão não existe', async () => {
+      refreshTokens.findById.mockResolvedValue(undefined);
+
+      await expect(service.revokeSession(STORED_USER.id, 'missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(refreshTokens.revokeById).not.toHaveBeenCalled();
+    });
+
+    it('ForbiddenException se sessão é de outro usuário', async () => {
+      refreshTokens.findById.mockResolvedValue({
+        id: 'sess-1',
+        userId: 'other-user',
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        revokedAt: null,
+        createdAt: new Date(),
+        ip: null,
+        userAgent: null,
+        lastUsedAt: null,
+      });
+
+      await expect(service.revokeSession(STORED_USER.id, 'sess-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      expect(refreshTokens.revokeById).not.toHaveBeenCalled();
+    });
+
+    it('idempotente: no-op se já revogada', async () => {
+      refreshTokens.findById.mockResolvedValue({
+        id: 'sess-1',
+        userId: STORED_USER.id,
+        tokenHash: 'hash',
+        expiresAt: new Date(Date.now() + 3600 * 1000),
+        revokedAt: new Date(),
+        createdAt: new Date(),
+        ip: null,
+        userAgent: null,
+        lastUsedAt: null,
+      });
+
+      await service.revokeSession(STORED_USER.id, 'sess-1');
+
+      expect(refreshTokens.revokeById).not.toHaveBeenCalled();
     });
   });
 });

@@ -142,4 +142,78 @@ describe('Users (e2e)', () => {
       await request(ctx.app.getHttpServer()).get('/users/me/export').expect(401);
     });
   });
+
+  describe('GET /users/me/sessions', () => {
+    it('retorna a sessão atual com ip/userAgent/lastUsedAt', async () => {
+      const user = await registerUser(ctx);
+
+      const response = await user.agent
+        .get('/users/me/sessions')
+        .set('User-Agent', 'jest-e2e')
+        .expect(200);
+
+      expect(response.body).toHaveLength(1);
+      const session = response.body[0];
+      expect(session).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          createdAt: expect.any(String),
+          ip: expect.any(String),
+          userAgent: 'agendia-e2e-suite',
+        }),
+      );
+    });
+
+    it('separa sessões por usuário', async () => {
+      const alice = await registerUser(ctx, { email: `a-${Date.now()}@test.app` });
+      const bob = await registerUser(ctx, { email: `b-${Date.now()}@test.app` });
+
+      const alices = await alice.agent.get('/users/me/sessions').expect(200);
+      const bobs = await bob.agent.get('/users/me/sessions').expect(200);
+
+      expect(alices.body).toHaveLength(1);
+      expect(bobs.body).toHaveLength(1);
+      expect(alices.body[0].id).not.toBe(bobs.body[0].id);
+    });
+  });
+
+  describe('DELETE /users/me/sessions/:id', () => {
+    it('revoga sessão própria — refresh do token revogado passa a falhar', async () => {
+      const user = await registerUser(ctx);
+      const list = await user.agent.get('/users/me/sessions').expect(200);
+      const sessionId = list.body[0].id;
+
+      await user.agent.delete(`/users/me/sessions/${sessionId}`).expect(204);
+
+      // O access token ainda está válido até expirar, mas o refresh
+      // associado à sessão revogada não consegue mais rotacionar.
+      await user.agent.post('/auth/refresh').expect(401);
+
+      const after = await user.agent.get('/users/me/sessions').expect(200);
+      expect(after.body).toHaveLength(0);
+    });
+
+    it('403 ao tentar revogar sessão de outro usuário', async () => {
+      const alice = await registerUser(ctx, { email: `a2-${Date.now()}@test.app` });
+      const bob = await registerUser(ctx, { email: `b2-${Date.now()}@test.app` });
+      const bobSessions = await bob.agent.get('/users/me/sessions').expect(200);
+      const bobSessionId = bobSessions.body[0].id;
+
+      await alice.agent.delete(`/users/me/sessions/${bobSessionId}`).expect(403);
+    });
+
+    it('404 para id inexistente', async () => {
+      const user = await registerUser(ctx);
+
+      await user.agent
+        .delete('/users/me/sessions/11111111-2222-4333-8444-555555555555')
+        .expect(404);
+    });
+
+    it('400 para id não-UUID', async () => {
+      const user = await registerUser(ctx);
+
+      await user.agent.delete('/users/me/sessions/not-a-uuid').expect(400);
+    });
+  });
 });

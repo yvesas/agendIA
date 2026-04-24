@@ -24,6 +24,11 @@ export interface AuthResponse {
   };
 }
 
+export interface SessionMetadata {
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,7 +39,7 @@ export class AuthService {
     private readonly refreshTokens: RefreshTokensRepository,
   ) {}
 
-  async register(dto: RegisterInput): Promise<AuthResponse> {
+  async register(dto: RegisterInput, metadata: SessionMetadata = {}): Promise<AuthResponse> {
     const existing = await this.users.findByEmail(dto.email);
     if (existing) {
       throw new ConflictException('Email already in use');
@@ -47,10 +52,10 @@ export class AuthService {
       passwordHash,
     });
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, metadata);
   }
 
-  async login(dto: LoginInput): Promise<AuthResponse> {
+  async login(dto: LoginInput, metadata: SessionMetadata = {}): Promise<AuthResponse> {
     const user = await this.users.findByEmail(dto.email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -61,10 +66,10 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, metadata);
   }
 
-  async refresh(refreshToken: string): Promise<AuthResponse> {
+  async refresh(refreshToken: string, metadata: SessionMetadata = {}): Promise<AuthResponse> {
     const payload = await this.verifyRefreshJwt(refreshToken);
 
     const hash = hashToken(refreshToken);
@@ -81,8 +86,9 @@ export class AuthService {
       throw new UnauthorizedException('User no longer exists');
     }
 
+    await this.refreshTokens.touchLastUsed(existing.id);
     await this.refreshTokens.revokeById(existing.id);
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, metadata);
   }
 
   async logout(refreshToken: string | null): Promise<void> {
@@ -102,7 +108,7 @@ export class AuthService {
     }
   }
 
-  private async buildAuthResponse(user: User): Promise<AuthResponse> {
+  private async buildAuthResponse(user: User, metadata: SessionMetadata): Promise<AuthResponse> {
     const payload: JwtPayload = { sub: user.id, email: user.email };
     const accessToken = this.jwt.sign(payload);
     // jti aleatório garante que rotações no mesmo segundo gerem tokens distintos
@@ -129,6 +135,8 @@ export class AuthService {
       userId: user.id,
       tokenHash: hashToken(refreshToken),
       expiresAt,
+      ip: metadata.ip ?? null,
+      userAgent: metadata.userAgent ?? null,
     });
 
     return {

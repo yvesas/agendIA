@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Ip, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle, seconds } from '@nestjs/throttler';
 import {
@@ -13,11 +13,12 @@ import type { Request, Response } from 'express';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
 import { REFRESH_TOKEN_COOKIE, clearAuthCookies, setAuthCookies } from './auth-cookies';
-import { AuthService } from './auth.service';
+import { AuthService, type SessionMetadata } from './auth.service';
 
 const LOGIN_ATTEMPTS_PER_MINUTE = 5;
 const REGISTER_ATTEMPTS_PER_HOUR = 10;
 const REFRESH_ATTEMPTS_PER_MINUTE = 30;
+const USER_AGENT_MAX_LENGTH = 512;
 
 interface PublicAuthResponse {
   user: { id: string; email: string; name: string };
@@ -34,8 +35,10 @@ export class AuthController {
   async register(
     @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
     @Res({ passthrough: true }) response: Response,
+    @Req() request: Request,
+    @Ip() ip: string,
   ): Promise<PublicAuthResponse> {
-    const result = await this.auth.register(body);
+    const result = await this.auth.register(body, buildMetadata(request, ip));
     setAuthCookies(response, result);
     return { user: result.user };
   }
@@ -46,8 +49,10 @@ export class AuthController {
   async login(
     @Body(new ZodValidationPipe(loginSchema)) body: LoginInput,
     @Res({ passthrough: true }) response: Response,
+    @Req() request: Request,
+    @Ip() ip: string,
   ): Promise<PublicAuthResponse> {
-    const result = await this.auth.login(body);
+    const result = await this.auth.login(body, buildMetadata(request, ip));
     setAuthCookies(response, result);
     return { user: result.user };
   }
@@ -59,12 +64,13 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
     @Body() rawBody: unknown,
+    @Ip() ip: string,
   ): Promise<PublicAuthResponse> {
     const cookies = request.cookies as Record<string, string | undefined> | undefined;
     const cookieToken = cookies?.[REFRESH_TOKEN_COOKIE];
     const bodyToken = parseBodyRefresh(rawBody);
     const token = cookieToken ?? bodyToken;
-    const result = await this.auth.refresh(token ?? '');
+    const result = await this.auth.refresh(token ?? '', buildMetadata(request, ip));
     setAuthCookies(response, result);
     return { user: result.user };
   }
@@ -86,4 +92,11 @@ function parseBodyRefresh(raw: unknown): string | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const parsed = refreshSchema.safeParse(raw);
   return parsed.success ? parsed.data.refreshToken : undefined;
+}
+
+function buildMetadata(request: Request, ip: string): SessionMetadata {
+  const headerUserAgent = request.headers['user-agent'];
+  const userAgent =
+    typeof headerUserAgent === 'string' ? headerUserAgent.slice(0, USER_AGENT_MAX_LENGTH) : null;
+  return { ip: ip || null, userAgent };
 }

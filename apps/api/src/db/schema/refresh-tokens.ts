@@ -13,6 +13,9 @@ export const refreshTokens = pgTable(
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    ip: varchar('ip', { length: 45 }),
+    userAgent: varchar('user_agent', { length: 512 }),
+    lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
   },
   (table) => [
     index('refresh_tokens_user_id_idx').on(table.userId),

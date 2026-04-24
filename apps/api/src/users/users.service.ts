@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -28,6 +29,14 @@ export interface DataExport {
   generatedAt: string;
   user: PublicUser;
   appointments: AppointmentWithExam[];
+}
+
+export interface SessionSummary {
+  id: string;
+  createdAt: Date;
+  lastUsedAt: Date | null;
+  ip: string | null;
+  userAgent: string | null;
 }
 
 @Injectable()
@@ -109,6 +118,31 @@ export class UsersService {
       user: this.toPublic(user),
       appointments,
     };
+  }
+
+  async listSessions(userId: string): Promise<SessionSummary[]> {
+    const rows = await this.refreshTokens.findActiveByUser(userId);
+    return rows.map((row) => ({
+      id: row.id,
+      createdAt: row.createdAt,
+      lastUsedAt: row.lastUsedAt,
+      ip: row.ip,
+      userAgent: row.userAgent,
+    }));
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    const session = await this.refreshTokens.findById(sessionId);
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+    if (session.userId !== userId) {
+      throw new ForbiddenException('You can only revoke your own sessions');
+    }
+    if (session.revokedAt !== null) {
+      return; // idempotente — revogar já revogada é no-op
+    }
+    await this.refreshTokens.revokeById(sessionId);
   }
 
   private toPublic(user: User): PublicUser {

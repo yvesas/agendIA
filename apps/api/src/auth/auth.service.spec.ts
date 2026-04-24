@@ -59,9 +59,13 @@ describe('AuthService', () => {
     refreshTokens = {
       create: jest.fn(),
       findActiveByHash: jest.fn(),
+      findActiveByUser: jest.fn(),
+      findById: jest.fn(),
+      touchLastUsed: jest.fn(),
       revokeById: jest.fn(),
       revokeByHash: jest.fn(),
       revokeAllForUser: jest.fn(),
+      deleteStale: jest.fn(),
     } as unknown as jest.Mocked<RefreshTokensRepository>;
 
     service = new AuthService(users, hasher, jwt, config, refreshTokens);
@@ -80,11 +84,13 @@ describe('AuthService', () => {
       });
 
       expect(hasher.hash).toHaveBeenCalledWith('Str0ng@Pass');
-      expect(refreshTokens.create).toHaveBeenCalledWith({
-        userId: FIXED_USER.id,
-        tokenHash: hashToken('refresh-token'),
-        expiresAt: expect.any(Date),
-      });
+      expect(refreshTokens.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: FIXED_USER.id,
+          tokenHash: hashToken('refresh-token'),
+          expiresAt: expect.any(Date) as unknown,
+        }),
+      );
       expect(result.accessToken).toBe('access-token');
       expect(result.refreshToken).toBe('refresh-token');
       expect(result.user.email).toBe(FIXED_USER.email);
@@ -139,7 +145,7 @@ describe('AuthService', () => {
   });
 
   describe('refresh', () => {
-    it('rotaciona: revoga o token atual e emite novos', async () => {
+    it('rotaciona: atualiza lastUsedAt, revoga o token atual e emite novos', async () => {
       jwt.verifyAsync.mockResolvedValue({ sub: FIXED_USER.id, email: FIXED_USER.email });
       refreshTokens.findActiveByHash.mockResolvedValue({
         id: 'token-row-1',
@@ -148,14 +154,23 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() + 3600 * 1000),
         revokedAt: null,
         createdAt: new Date(),
+        ip: null,
+        userAgent: null,
+        lastUsedAt: null,
       });
       users.findById.mockResolvedValue(FIXED_USER);
 
-      const result = await service.refresh('valid-refresh');
+      const result = await service.refresh('valid-refresh', {
+        ip: '10.0.0.1',
+        userAgent: 'jest',
+      });
 
       expect(refreshTokens.findActiveByHash).toHaveBeenCalledWith(hashToken('valid-refresh'));
+      expect(refreshTokens.touchLastUsed).toHaveBeenCalledWith('token-row-1');
       expect(refreshTokens.revokeById).toHaveBeenCalledWith('token-row-1');
-      expect(refreshTokens.create).toHaveBeenCalled();
+      expect(refreshTokens.create).toHaveBeenCalledWith(
+        expect.objectContaining({ ip: '10.0.0.1', userAgent: 'jest' }),
+      );
       expect(result.refreshToken).toBe('refresh-token');
     });
 
@@ -188,6 +203,9 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() + 3600 * 1000),
         revokedAt: null,
         createdAt: new Date(),
+        ip: null,
+        userAgent: null,
+        lastUsedAt: null,
       });
       users.findById.mockResolvedValue(undefined);
 

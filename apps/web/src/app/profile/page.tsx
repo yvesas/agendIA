@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/use-profile';
 import { DangerZone } from './danger-zone';
 import { PasswordSection } from './password-section';
 import { ProfileSection } from './profile-section';
+import { SessionsSection } from './sessions-section';
 
 export default function ProfilePage() {
   const profile = useProfile();
@@ -34,6 +35,7 @@ export default function ProfilePage() {
             initial={{ name: profile.data.name, email: profile.data.email }}
           />
           <PasswordSection />
+          <SessionsSection />
           <DangerZone />
         </>
       ) : null}

@@ -86,3 +86,31 @@ export function useExportMyData(): UseMutationResult<DataExport, ApiError, void>
     mutationFn: () => apiClient.get<DataExport>('/users/me/export'),
   });
 }
+
+export interface SessionSummary {
+  id: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+const SESSIONS_QUERY_KEY = ['users', 'me', 'sessions'] as const;
+
+export function useSessions(): UseQueryResult<SessionSummary[], ApiError> {
+  return useQuery<SessionSummary[], ApiError>({
+    queryKey: SESSIONS_QUERY_KEY,
+    queryFn: ({ signal }) => apiClient.get<SessionSummary[]>('/users/me/sessions', { signal }),
+    staleTime: 15_000,
+  });
+}
+
+export function useRevokeSession(): UseMutationResult<void, ApiError, string> {
+  const queryClient = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: (id) => apiClient.delete<void>(`/users/me/sessions/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+}

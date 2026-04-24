@@ -5,6 +5,8 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Patch,
   Put,
   UseGuards,
@@ -22,7 +24,12 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { type AuthenticatedUser } from '../auth/jwt.strategy';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 
-import { type DataExport, type PublicUser, UsersService } from './users.service';
+import {
+  type DataExport,
+  type PublicUser,
+  type SessionSummary,
+  UsersService,
+} from './users.service';
 
 @ApiTags('Users')
 @ApiBearerAuth()
@@ -39,6 +46,20 @@ export class UsersController {
   @Get('me/export')
   exportMyData(@CurrentUser() user: AuthenticatedUser): Promise<DataExport> {
     return this.users.exportData(user.id);
+  }
+
+  @Get('me/sessions')
+  listSessions(@CurrentUser() user: AuthenticatedUser): Promise<SessionSummary[]> {
+    return this.users.listSessions(user.id);
+  }
+
+  @Delete('me/sessions/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async revokeSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) sessionId: string,
+  ): Promise<void> {
+    await this.users.revokeSession(user.id, sessionId);
   }
 
   @Patch('me')
